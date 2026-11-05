@@ -206,6 +206,8 @@ fn post(thread_id: u32, action: Action) {
         Action::SwitchLeft => 0,
         Action::SwitchRight => 1,
         Action::ReplayClick(button) => 2 + button_code(button),
+        Action::ShowTaskView => 6,
+        Action::ShowDesktop => 7,
     };
 
     unsafe { PostThreadMessageW(thread_id, WM_ACTION, code, 0) };
@@ -229,6 +231,8 @@ pub fn decode_action(code: usize) -> Option<Action> {
         3 => Some(Action::ReplayClick(Button::Right)),
         4 => Some(Action::ReplayClick(Button::X1)),
         5 => Some(Action::ReplayClick(Button::X2)),
+        6 => Some(Action::ShowTaskView),
+        7 => Some(Action::ShowDesktop),
         _ => None,
     }
 }
@@ -253,6 +257,8 @@ mod tests {
                 Action::SwitchLeft => 0,
                 Action::SwitchRight => 1,
                 Action::ReplayClick(button) => 2 + button_code(button),
+                Action::ShowTaskView => 6,
+                Action::ShowDesktop => 7,
             };
             assert_eq!(decode_action(code), Some(action));
         }

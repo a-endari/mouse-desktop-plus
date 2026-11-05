@@ -10,8 +10,8 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
     KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
     MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT,
-    VIRTUAL_KEY, VK_LCONTROL, VK_LEFT, VK_LMENU, VK_LSHIFT, VK_LWIN, VK_RCONTROL, VK_RIGHT,
-    VK_RMENU, VK_RSHIFT, VK_RWIN,
+    VIRTUAL_KEY, VK_D, VK_LCONTROL, VK_LEFT, VK_LMENU, VK_LSHIFT, VK_LWIN, VK_RCONTROL, VK_RIGHT,
+    VK_RMENU, VK_RSHIFT, VK_RWIN, VK_TAB,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{XBUTTON1, XBUTTON2};
 
@@ -27,7 +27,25 @@ pub enum Direction {
     Left,
     Right,
 }
+/// Open Windows Task View using Win + Tab.
+pub fn show_task_view() {
+    send(&[
+        key(VK_LWIN, 0),
+        key(VK_TAB, 0),
+        key(VK_TAB, KEYEVENTF_KEYUP),
+        key(VK_LWIN, KEYEVENTF_KEYUP),
+    ]);
+}
 
+/// Show the Windows desktop using Win + D.
+pub fn show_desktop() {
+    send(&[
+        key(VK_LWIN, 0),
+        key(VK_D, 0),
+        key(VK_D, KEYEVENTF_KEYUP),
+        key(VK_LWIN, KEYEVENTF_KEYUP),
+    ]);
+}
 /// Modifiers that would change the meaning of the shortcut if the user happens to be
 /// holding them, so they are released for the duration of the injection and restored
 /// afterwards.

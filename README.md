@@ -1,12 +1,19 @@
-# mouse-desktop
+# mouse-desktop-plus
 
-Switch Windows virtual desktops with a mouse gesture. Hold the wheel button, drag left or
-right, and Windows moves to the neighbouring desktop.
+Control Windows virtual desktops with a mouse gesture. Hold the wheel button and drag left
+or right to move to the neighbouring desktop, drag up to open Task View, or drag down to
+show the desktop.
+
+> **About this fork.** mouse-desktop-plus is a fork of
+> [fpinero/mouse-desktop](https://github.com/fpinero/mouse-desktop). It keeps everything the
+> original does and adds two vertical gestures, Task View and Show Desktop. The product page,
+> the winget package and the Scoop bucket mentioned below belong to the original project and
+> do not include these gestures; see "Step 2: get the executable".
 
 No Administrator privileges, no runtime to install, no driver, no service. One 270 KB
 executable that works with any mouse of any brand.
 
-There is a product page at <https://mouse-desktop.nivelepsilon.com>, with a recording of
+The original project has a product page at <https://mouse-desktop.nivelepsilon.com>, with a recording of
 the gesture, the checksums to verify a download against, and, if a managed machine refuses
 to run it, the request your IT department will want.
 
@@ -28,11 +35,17 @@ of them fitted is written up in [docs/prior-art.md](docs/prior-art.md).
 
 - Hold the wheel button and drag horizontally to move one desktop per 60 pixels.
 - Keep dragging in the same direction to walk across several desktops in one motion.
+- Hold the wheel button and drag **up** to open Task View (`Win+Tab`).
+- Hold the wheel button and drag **down** to show the desktop (`Win+D`).
 - Press and release the wheel button without dragging and the click is passed on intact,
   so middle click keeps closing browser tabs.
-- Drag vertically and nothing happens, so the gesture stays out of the way.
 
-The trigger button, the distance, the direction and the rest are configurable.
+The first gesture recognised during a press decides what that press does. A vertical drag
+fires once and then the press is finished, and a press that started switching desktops
+ignores later vertical movement, so a single hold never mixes the two.
+
+The trigger button, the distance, the direction of the horizontal gesture and the rest are
+configurable.
 
 ## Requirements
 
@@ -95,7 +108,9 @@ Delete `probe.cs` and the `probe1.exe` to `probe3.exe` files when you are done.
 
 ### Step 2: get the executable
 
-Pick one:
+Pick one. The winget package, the Scoop bucket and the upstream releases are built from the
+original project and do not contain the Task View and Show Desktop gestures. To get them,
+use a release of this fork or build it yourself.
 
 - **With winget**, which ships with Windows 10 and 11 as App Installer, if your
   organisation has not switched it off:
@@ -121,13 +136,15 @@ Pick one:
   Windows". Leave the configuration file where it is created by default: the folder a
   package manager installs into belongs to it and can be replaced on the next update.
 - **From a release.** Download `mouse-desktop-x64.exe` from the
-  [releases page](https://github.com/fpinero/mouse-desktop/releases). Use the `arm64`
+  [releases page](https://github.com/a-endari/mouse-desktop-plus/releases). Use the `arm64`
   build only on an Arm laptop such as a Snapdragon X machine; the x64 build also runs
   there under emulation.
 - **Build it yourself**, on a machine where you can install Rust. This is the option that
   lets you know exactly what you are running:
 
   ```powershell
+  git clone https://github.com/a-endari/mouse-desktop-plus.git
+  cd mouse-desktop-plus
   cargo build --release
   ```
 
@@ -181,10 +198,13 @@ PC" panel because the executable is not signed. Choose "More info", then "Run an
    sight.
 2. Create a second virtual desktop with `Ctrl+Win+D`.
 3. Hold the wheel button and drag about 60 pixels to the left. The desktop should change.
-4. Middle click a browser tab. It should close, which confirms that a click without a drag
+4. Hold the wheel button and drag about 60 pixels up. Task View should open.
+5. Press `Esc` to close it, then hold the wheel button and drag about 60 pixels down. The
+   desktop should be shown.
+6. Middle click a browser tab. It should close, which confirms that a click without a drag
    is still passed through.
-5. Right click the tray icon and confirm "Start with Windows" is ticked.
-6. Sign out and back in. The icon should come back on its own.
+7. Right click the tray icon and confirm "Start with Windows" is ticked.
+8. Sign out and back in. The icon should come back on its own.
 
 ### Portable, with no installation at all
 
@@ -313,10 +333,10 @@ the first run. Open it from the tray menu, edit it, then choose "Reload configur
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `trigger` | `"middle"` | Button to hold: `middle`, `right`, `x1` or `x2` |
-| `threshold_px` | `60` | Horizontal distance that moves one desktop |
-| `repeat_cooldown_ms` | `250` | Shortest delay between two switches |
-| `max_vertical_ratio` | `1.0` | How far from horizontal a drag may stray and still count |
-| `invert` | `false` | Swap the direction of travel |
+| `threshold_px` | `60` | Distance that triggers a gesture: one desktop horizontally, Task View or Show Desktop vertically |
+| `repeat_cooldown_ms` | `250` | Shortest delay between two desktop switches. Does not apply to the vertical gestures, which fire once per press |
+| `max_vertical_ratio` | `1.0` | How far from horizontal a drag may stray and still count as a desktop switch. Does not affect the vertical gestures |
+| `invert` | `false` | Swap the direction of desktop switching. Up and down are not affected |
 | `replay_click_when_no_gesture` | `true` | Pass the click on when there was no drag |
 | `enabled` | `true` | Start with gesture recognition switched on |
 
@@ -331,6 +351,12 @@ Administrator, such as an elevated terminal, Task Manager started as administrat
 UAC prompt itself, the gesture does nothing. Windows deliberately hides input from
 lower-privileged processes through User Interface Privilege Isolation, and there is no way
 around it that does not require the Administrator account this utility exists to avoid.
+
+**Vertical gestures.** A vertical drag is recognised when it travels at least
+`threshold_px` and is longer vertically than horizontally. It fires once per press, so
+holding the button and dragging further does nothing more. `Win+D` toggles, so dragging
+down a second time on an already shown desktop restores the windows. There is currently no
+setting to switch the vertical gestures off or to change which direction does what.
 
 **No wrap around.** On the first or the last desktop, dragging further does nothing. That
 is how `Ctrl+Win+Arrow` behaves too.
@@ -348,8 +374,9 @@ standard user does not have.
 
 A global low level mouse hook, `SetWindowsHookEx(WH_MOUSE_LL, ...)`, watches for the
 trigger button being held. When the pointer has travelled far enough horizontally, the
-utility synthesises `Ctrl+Win+Left` or `Ctrl+Win+Right` with `SendInput`. Neither call
-needs any privileges.
+utility synthesises `Ctrl+Win+Left` or `Ctrl+Win+Right` with `SendInput`. When it has
+travelled far enough vertically, it synthesises `Win+Tab` for an upward drag or `Win+D` for
+a downward one. None of these calls needs any privileges.
 
 Switching could also be done through `IVirtualDesktopManagerInternal`, a COM interface
 that changes desktops directly. This project does not use it: Microsoft changes its GUIDs
@@ -389,7 +416,14 @@ Manual check, worth doing after any change to the hook:
    browser. Each should move one desktop forward.
 4. Keep dragging without releasing. It should keep moving forward.
 5. Middle click a browser tab. It should close, which proves the click was passed on.
-6. Hold the wheel button and drag vertically. Nothing should happen.
+6. Hold the wheel button and drag up. Task View should open once, and dragging further
+   without releasing should do nothing more.
+7. Close Task View, then hold the wheel button and drag down. The desktop should be shown
+   once.
+8. Drag right until the desktop changes, then without releasing drag up. Nothing should
+   happen, because the press already chose the horizontal gesture.
+9. Release the wheel button after a vertical drag. No middle click should reach the window
+   underneath.
 
 ## License
 

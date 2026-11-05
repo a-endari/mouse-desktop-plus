@@ -27,11 +27,15 @@ pub enum RawEvent {
 /// Something the utility should carry out.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Action {
-    /// Move to the virtual desktop on the left (`Ctrl+Win+Left`).
+    /// Move to the virtual desktop on the left.
     SwitchLeft,
-    /// Move to the virtual desktop on the right (`Ctrl+Win+Right`).
+    /// Move to the virtual desktop on the right.
     SwitchRight,
-    /// Re-inject a real click, because the press turned out not to be a gesture.
+    /// Open Windows Task View (`Win + Tab`).
+    ShowTaskView,
+    /// Show the desktop (`Win + D`).
+    ShowDesktop,
+    /// Re-inject a real click because the press was not a gesture.
     ReplayClick(Button),
 }
 
@@ -87,17 +91,20 @@ impl Default for GestureConfig {
         }
     }
 }
-
+/// Axis selected by the first recognised gesture.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum GestureAxis {
+    Horizontal,
+    Vertical,
+}
 /// State of an in-progress press of the trigger button.
 #[derive(Clone, Copy, Debug)]
 struct Armed {
-    /// Point the current drag distance is measured from. Reset on every switch, which is
-    /// what lets one long drag walk across several desktops.
     anchor_x: i32,
     anchor_y: i32,
-    /// Whether this press has already produced at least one switch.
     fired: bool,
     last_fire_ms: u64,
+    axis: Option<GestureAxis>,
 }
 
 /// The gesture state machine.
@@ -137,6 +144,7 @@ impl Gesture {
                     anchor_y: y,
                     fired: false,
                     last_fire_ms: 0,
+                    axis: None,
                 });
                 // The application under the cursor must not see the press, otherwise a
                 // drag would also open a context menu or start an autoscroll.
@@ -172,29 +180,48 @@ impl Gesture {
         let dx = x - armed.anchor_x;
         let dy = y - armed.anchor_y;
 
+        // A recognised vertical gesture fires only once per button hold.
+        if armed.axis == Some(GestureAxis::Vertical) {
+            return None;
+        }
+
+        // Detect vertical gestures before horizontal gestures.
+        // Up opens Task View; down shows the desktop.
+        if armed.axis.is_none() && dy.abs() >= config.threshold_px && dy.abs() > dx.abs() {
+            armed.axis = Some(GestureAxis::Vertical);
+            armed.fired = true;
+            armed.last_fire_ms = now_ms;
+
+            return Some(if dy < 0 {
+                Action::ShowTaskView
+            } else {
+                Action::ShowDesktop
+            });
+        }
+
+        // Horizontal gestures retain the original threshold behaviour.
         if dx.abs() < config.threshold_px {
             return None;
         }
 
-        // Reject drags that are more vertical than horizontal, so scrolling-like motions
-        // with the wheel button held do not jump desktops.
+        // Reject drags that are too vertical to count as horizontal.
         if (dy.abs() as f32) > dx.abs() as f32 * config.max_vertical_ratio {
             return None;
         }
 
-        // The first switch of a press is immediate; later ones wait for the desktop
-        // animation. The anchor is left alone while the cooldown blocks, so the distance
-        // the user has already dragged still counts towards the next switch.
+        // Preserve the existing cooldown for repeated desktop switches.
         if armed.fired && now_ms.saturating_sub(armed.last_fire_ms) < config.repeat_cooldown_ms {
             return None;
         }
 
+        armed.axis = Some(GestureAxis::Horizontal);
         armed.anchor_x = x;
         armed.anchor_y = y;
         armed.fired = true;
         armed.last_fire_ms = now_ms;
 
         let rightwards = (dx > 0) != config.invert;
+
         Some(if rightwards {
             Action::SwitchRight
         } else {
@@ -333,7 +360,7 @@ mod tests {
     }
 
     #[test]
-    fn vertical_drags_do_not_switch_desktops() {
+    fn vertical_drags_trigger_show_desktops() {
         let mut g = gesture();
         g.on_event(
             RawEvent::Down {
@@ -345,7 +372,7 @@ mod tests {
         );
         assert_eq!(
             g.on_event(RawEvent::Move { x: 80, y: 300 }, 10).action(),
-            None
+            Some(Action::ShowDesktop)
         );
     }
 
@@ -424,5 +451,65 @@ mod tests {
         g.on_event(down(0), 0);
         g.reset();
         assert_eq!(g.on_event(mv(500), 10).action(), None);
+    }
+    #[test]
+    fn dragging_up_opens_task_view() {
+        let mut g = gesture();
+        g.on_event(down(100), 0);
+
+        assert_eq!(
+            g.on_event(RawEvent::Move { x: 100, y: -60 }, 10).action(),
+            Some(Action::ShowTaskView)
+        );
+    }
+
+    #[test]
+    fn dragging_down_shows_desktop() {
+        let mut g = gesture();
+        g.on_event(down(100), 0);
+
+        assert_eq!(
+            g.on_event(RawEvent::Move { x: 100, y: 60 }, 10).action(),
+            Some(Action::ShowDesktop)
+        );
+    }
+
+    #[test]
+    fn vertical_gesture_fires_only_once_per_hold() {
+        let mut g = gesture();
+        g.on_event(down(100), 0);
+
+        assert_eq!(
+            g.on_event(RawEvent::Move { x: 100, y: -60 }, 10).action(),
+            Some(Action::ShowTaskView)
+        );
+
+        assert_eq!(
+            g.on_event(RawEvent::Move { x: 100, y: -120 }, 300).action(),
+            None
+        );
+    }
+
+    #[test]
+    fn vertical_gesture_does_not_later_switch_desktops() {
+        let mut g = gesture();
+        g.on_event(down(100), 0);
+
+        g.on_event(RawEvent::Move { x: 100, y: -60 }, 10);
+
+        assert_eq!(
+            g.on_event(RawEvent::Move { x: 200, y: -60 }, 500).action(),
+            None
+        );
+    }
+
+    #[test]
+    fn vertical_gesture_does_not_replay_middle_click() {
+        let mut g = gesture();
+        g.on_event(down(100), 0);
+
+        g.on_event(RawEvent::Move { x: 100, y: 60 }, 10);
+
+        assert_eq!(g.on_event(up(100), 20).action(), None);
     }
 }

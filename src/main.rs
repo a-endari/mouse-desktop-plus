@@ -172,6 +172,8 @@ fn perform(action: Action) {
     match action {
         Action::SwitchLeft => desktop::switch(Direction::Left),
         Action::SwitchRight => desktop::switch(Direction::Right),
+        Action::ShowTaskView => desktop::show_task_view(),
+        Action::ShowDesktop => desktop::show_desktop(),
         Action::ReplayClick(button) => desktop::replay_click(button),
     }
 }
