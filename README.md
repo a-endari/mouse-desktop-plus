@@ -5,10 +5,14 @@ or right to move to the neighbouring desktop, drag up to open Task View, or drag
 show the desktop.
 
 > **About this fork.** mouse-desktop-plus is a fork of
-> [fpinero/mouse-desktop](https://github.com/fpinero/mouse-desktop). It keeps everything the
-> original does and adds two vertical gestures, Task View and Show Desktop. The product page,
-> the winget package and the Scoop bucket mentioned below belong to the original project and
-> do not include these gestures; see "Step 2: get the executable".
+> [fpinero/mouse-desktop](https://github.com/fpinero/mouse-desktop).
+> It retains the original horizontal desktop-switching gestures and adds two
+> vertical gestures: drag up to open Task View and drag down to show the desktop.
+>
+> This fork has its own releases and installer. Follow the installation
+> instructions below to get the version with all features. The original
+> project's installation methods are documented separately for users who
+> prefer the original, horizontal-only functionality.
 
 No Administrator privileges, no runtime to install, no driver, no service. One 270 KB
 executable that works with any mouse of any brand.
@@ -55,9 +59,8 @@ configurable.
 
 ## Installing
 
-Everything below works from an ordinary user account. Nothing here asks for elevation, and
-if a User Account Control prompt ever appears, something is wrong: stop and read the
-troubleshooting table.
+Everything below works from an ordinary user account. No Administrator
+privileges, additional runtimes, drivers or services are required.
 
 ### Step 1: check the machine will run it at all
 
@@ -95,101 +98,68 @@ in fifteen slipped past that way while the release executable was blocked every 
 time. It is also why the snippet compiles three separate binaries instead of running one
 of them three times: each compilation produces a different file, whereas a second run of
 the same one only re-reads a verdict that has already been cached. What actually settles
-the question is step 4, when you start the utility itself.
+the question is the next step, when you start the utility itself.
 
 An "Access denied" on any of the three rounds is unambiguous in the other direction:
 something is blocking unsigned executables, and this utility will be blocked the same way.
 A message about your organisation's policy points at an application control policy. A bare
 denial with no dialog, where reading the file fails as well as running it, points at
-Attack Surface Reduction. Either way, read the troubleshooting table below before going
-any further.
+Attack Surface Reduction. Either way, read the troubleshooting section before going any
+further.
 
 Delete `probe.cs` and the `probe1.exe` to `probe3.exe` files when you are done.
 
-### Step 2: get the executable
+### Step 2: download the release
 
-Pick one. The winget package, the Scoop bucket and the upstream releases are built from the
-original project and do not contain the Task View and Show Desktop gestures. To get them,
-use a release of this fork or build it yourself.
+Download the latest release of **mouse-desktop-plus** from the project's
+[GitHub Releases](https://github.com/a-endari/mouse-desktop-plus/releases/latest) page.
 
-- **With winget**, which ships with Windows 10 and 11 as App Installer, if your
-  organisation has not switched it off:
+You need two files from the same release:
 
-  ```powershell
-  winget install --id fpinero.mouse-desktop
-  ```
+1. **`mouse-desktop-x64.exe`** – the application executable.
+2. **`install.ps1`** – the installation script.
 
-  By default it installs into your user profile and puts a `mouse-desktop` command on the
-  path.
-- **With Scoop**, if you already use it. Scoop exists to install software without an
-  Administrator account, which is the same constraint this utility was written for:
+Download both files into the same folder. For example, your Downloads folder is fine.
 
-  ```powershell
-  scoop bucket add fpinero https://github.com/fpinero/scoop-bucket
-  scoop install mouse-desktop
-  ```
+Use the `arm64` executable instead if you have a Windows ARM device. The x64
+version also works on ARM devices through emulation.
 
-  Both package managers do the copying that step 3 does, so skip to step 4. Neither of
-  them starts the utility or adds the start-up entry, though. Start it once with
-  `mouse-desktop` (after winget, in a new terminal, because the path only changes for
-  windows opened afterwards), then right click the tray icon and tick "Start with
-  Windows". Leave the configuration file where it is created by default: the folder a
-  package manager installs into belongs to it and can be replaced on the next update.
-- **From a release.** Download `mouse-desktop-x64.exe` from the
-  [releases page](https://github.com/a-endari/mouse-desktop-plus/releases). Use the `arm64`
-  build only on an Arm laptop such as a Snapdragon X machine; the x64 build also runs
-  there under emulation.
-- **Build it yourself**, on a machine where you can install Rust. This is the option that
-  lets you know exactly what you are running:
+> **Important:** Make sure you download both files from the releases of
+> `mouse-desktop-plus`, not from the original `fpinero/mouse-desktop` repository.
+> The original application does not include the Task View and Show Desktop gestures.
 
-  ```powershell
-  git clone https://github.com/a-endari/mouse-desktop-plus.git
-  cd mouse-desktop-plus
-  cargo build --release
-  ```
+### Step 3: install
 
-  The result is `target\release\mouse-desktop.exe`, about 270 KB. Copy that one file to
-  the target machine, by memory stick, OneDrive, or however files normally reach it. No
-  build tools are needed on the machine that runs it.
-
-A package manager changes how the file arrives, not whether a managed machine lets it run.
-Attack Surface Reduction and application control judge the executable itself, so a file
-that step 1 predicts will be blocked is blocked just the same when winget or Scoop put it
-there. Whichever way you got it, the first start may show the SmartScreen panel described
-in step 3.
-
-### Step 3: install it
-
-The script does the whole job:
+Open PowerShell in the folder containing the downloaded files and run:
 
 ```powershell
-.\scripts\install.ps1 -Source .\mouse-desktop.exe
+.\install.ps1 -Source .\mouse-desktop-x64.exe
 ```
 
-It copies the executable to `%LOCALAPPDATA%\Programs\mouse-desktop`, adds a start-up entry
-under `HKEY_CURRENT_USER`, and starts it. Add `-NoAutostart` or `-NoStart` to skip either
-part.
+The installer automatically:
 
-If PowerShell refuses to run the script because of the execution policy, either allow it
-for the current session only:
+- Creates `%LOCALAPPDATA%\Programs\mouse-desktop` if it does not exist.
+- Copies the executable into that directory.
+- Creates a Windows startup entry under `HKEY_CURRENT_USER`.
+- Starts the application.
+
+No Administrator privileges are required.
+
+If PowerShell refuses to run the script because of the execution policy, allow
+scripts for the current session only:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
-or skip the script entirely and do it by hand, which is the same three actions:
+Then run the installer command again.
 
-```powershell
-$dir = "$env:LOCALAPPDATA\Programs\mouse-desktop"
-New-Item -ItemType Directory -Force $dir | Out-Null
-Copy-Item .\mouse-desktop.exe "$dir\mouse-desktop.exe" -Force
-New-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' `
-    -Name 'mouse-desktop' -Value "`"$dir\mouse-desktop.exe`"" -PropertyType String -Force
-Start-Process "$dir\mouse-desktop.exe"
-```
+You can also use `-NoAutostart` to install without creating a startup entry,
+or `-NoStart` to install without immediately launching the application.
 
-The first time the file runs, Windows SmartScreen may show a blue "Windows protected your
-PC" panel because the executable is not signed. Choose "More info", then "Run anyway".
+The first time the executable runs, Windows SmartScreen may display a blue
+"Windows protected your PC" panel because the executable is not signed.
+Choose **More info**, then **Run anyway**.
 
 ### Step 4: check it works
 
@@ -215,52 +185,126 @@ from there, so nothing is left behind on the machine.
 
 ### Updating
 
-Run `install.ps1` again with the new executable. It stops the running copy first, so there
-is nothing else to do. Your configuration file is not touched.
+Download the new executable and installer script from the latest
+[GitHub Release](https://github.com/a-endari/mouse-desktop-plus/releases/latest).
 
-If a package manager installed it, let it do the update instead. Choose "Exit" from the
-tray menu first, or run `Stop-Process -Name mouse-desktop`, because Windows will not
-replace an executable that is running:
+Run the installer again with the new executable:
 
 ```powershell
-winget upgrade --id fpinero.mouse-desktop
-scoop update mouse-desktop
+.\install.ps1 -Source .\mouse-desktop-x64.exe
 ```
 
-Then start it again and check in the tray menu that "Start with Windows" is still ticked.
-The tick is only shown when the start-up entry points at the very copy that is running, so
-if the update moved the file, it shows unticked and one click puts it right.
+The installer stops the running copy before replacing it, so there is nothing else
+to do. Your configuration file is not touched.
 
-Neither package manager follows the releases page by itself. A version reaches winget once
-its manifest has been merged into `microsoft/winget-pkgs`, which includes a review by a
-volunteer moderator, and reaches Scoop once the bucket has been updated for it. Until then
-both answer that there is nothing to upgrade, so they can trail a new release by days or
-weeks.
-
-A new release is a new file, and a managed machine judges it from scratch. A laptop that
-runs the current version without complaint can still block the next one for a while, as
-described under "Blocked by Attack Surface Reduction" below.
+A new release is a new file, and a managed machine judges it from scratch. A laptop
+that runs the current version without complaint can still block the next one for a
+while, as described under "Blocked by Attack Surface Reduction" below.
 
 ### Removing
 
+The uninstall script is included in the repository:
+
 ```powershell
-.\scripts\uninstall.ps1
+.\uninstall.ps1
 ```
 
-This stops the utility, removes the start-up entry and deletes the folder. Add
-`-RemoveConfig` to delete the configuration too.
+This stops the utility, removes the startup entry and deletes the installation folder.
+Add `-RemoveConfig` to delete the configuration too.
 
-If a package manager installed it, untick "Start with Windows" in the tray menu and choose
-"Exit" before you remove it:
+If you downloaded only the release assets, you can obtain the uninstall script
+from the repository's `scripts` directory.
+
+### Using the original mouse-desktop instead
+
+<details>
+<summary><strong>Install the original horizontal-only version (without Task View and Show Desktop)</strong></summary>
+
+If you prefer the original application, you can install it using the methods
+provided by its author. This version supports horizontal mouse gestures for
+switching between virtual desktops, but does not include the two vertical
+gestures added by this fork.
+
+**Option 1: winget**
+
+If your organisation has not disabled winget:
+
+```powershell
+winget install --id fpinero.mouse-desktop
+```
+
+By default it installs into your user profile and puts a `mouse-desktop`
+command on the path.
+
+**Option 2: Scoop**
+
+If you already use Scoop:
+
+```powershell
+scoop bucket add fpinero https://github.com/fpinero/scoop-bucket
+scoop install mouse-desktop
+```
+
+**Option 3: download from the original project's releases**
+
+Visit the original project's
+[GitHub Releases](https://github.com/fpinero/mouse-desktop/releases)
+and download the appropriate executable.
+
+**Starting the application**
+
+Package managers handle downloading and installing the executable, but
+they do not automatically start it or configure Windows startup.
+
+Start it once with:
+
+```powershell
+mouse-desktop
+```
+
+Afterwards, right-click its notification-area icon and enable
+"Start with Windows".
+
+**Updating**
+
+For winget:
+
+```powershell
+winget upgrade --id fpinero.mouse-desktop
+```
+
+For Scoop:
+
+```powershell
+scoop update mouse-desktop
+```
+
+**Removing**
+
+For winget:
 
 ```powershell
 winget uninstall --id fpinero.mouse-desktop
+```
+
+For Scoop:
+
+```powershell
 scoop uninstall mouse-desktop
 ```
 
-Neither of them knows about the start-up entry, which lives under `HKEY_CURRENT_USER`, so
-they leave it behind pointing at a file that no longer exists. They leave the configuration
-in `%APPDATA%\mouse-desktop` too; delete that folder by hand if you want it gone.
+Neither package manager knows about the startup entry, which lives under
+`HKEY_CURRENT_USER`, so it may leave an entry pointing at a file that no
+longer exists. Disable "Start with Windows" from the tray menu before
+uninstalling.
+
+The configuration is stored in `%APPDATA%\mouse-desktop`. Delete that
+folder manually if you want to remove it as well.
+
+For further information, documentation and troubleshooting, visit the
+[original project website](https://mouse-desktop.nivelepsilon.com).
+
+</details>
 
 ### Troubleshooting
 
@@ -268,7 +312,7 @@ in `%APPDATA%\mouse-desktop` too; delete that folder by hand if you want it gone
 | --- | --- | --- |
 | "This app has been blocked by your system administrator" | AppLocker or App Control is blocking user-writable folders | Ask IT to allow the file by hash, or to name a folder you may run programs from, and install there |
 | SmartScreen panel on first run | The executable is unsigned | "More info", then "Run anyway". Building it yourself avoids the question |
-| The script will not run | PowerShell execution policy | `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, or use the manual commands above |
+| The script will not run | PowerShell execution policy | `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` |
 | No icon in the notification area | It may simply be hidden | Click the chevron next to the clock and drag the icon onto the taskbar |
 | The gesture works everywhere except one window | That window belongs to an elevated process | Expected, see the known limitations |
 | Nothing happens at all | Another copy may already be running | Check with `Get-Process mouse-desktop`, and start it with `--verbose` to get a log next to the configuration file |
@@ -282,8 +326,8 @@ meet a prevalence, age, or trusted list criterion", blocks executables that are 
 and too new to have a reputation, which is exactly what a fresh build of this utility is.
 
 It is easy to misread, because it gives a bare "Access denied" with no dialog and it denies
-plain reads as well as execution, so even `Get-FileHash` fails and the symptom looks like a
-file permission problem. It is not. The rule follows the file and not the folder, so
+plain reads as well as execution, so even `Get-FileHash` fails and the symptom looks like
+a file permission problem. It is not. The rule follows the file and not the folder, so
 another directory, a portable copy and a renamed file all behave the same, while a signed
 and prevalent executable in that very folder runs normally.
 
@@ -308,8 +352,8 @@ to other managed machines.
 Waiting works, but not on the timetable the documentation suggests. Microsoft describes
 the age criterion in terms of hours. On the machine these instructions were tested
 against, the release binary was refused every single time for the next forty four hours,
-ninety blocks in the event log, and then the very same file, byte for byte, ran without a
-complaint two weeks later. Nobody tried in between, so the day it turned is unknown.
+ninety blocks in the event log, and then the very same file, byte for byte, ran without
+a complaint two weeks later. Nobody tried in between, so the day it turned is unknown.
 Budget ten days rather than two, and do not read a block on the second day as a permanent
 verdict.
 
